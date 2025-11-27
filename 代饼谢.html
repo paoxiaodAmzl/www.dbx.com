@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮箱系统 - www.dbxyx.com</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- GSAP 动画库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#3b82f6',
+                        accent: '#60a5fa',
+                        neutral: '#f1f5f9',
+                        'neutral-dark': '#334155',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                    },
+                    backdropBlur: {
+                        'glass': '4px',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .glass-effect {
+                @apply bg-white bg-opacity-20 backdrop-blur-glass shadow-glass border border-white border-opacity-20;
+            }
+            .btn-primary {
+                @apply px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .btn-secondary {
+                @apply px-4 py-2 bg-white text-primary border border-primary rounded-md hover:bg-neutral transition-all duration-300 flex items-center justify-center gap-2;
+            }
+            .input-field {
+                @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300;
+            }
+            .mail-item {
+                @apply p-3 border-b border-gray-200 hover:bg-neutral transition-all duration-300 cursor-pointer;
+            }
+            .mail-item.active {
+                @apply bg-blue-50 border-l-4 border-primary;
+            }
+            .animate-fade-in {
+                animation: fadeIn 0.5s ease-in-out;
+            }
+            .animate-slide-in {
+                animation: slideIn 0.3s ease-in-out;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes slideIn {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- 登录模态框 -->
+    <div id="loginModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div class="glass-effect rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-neutral-dark">邮箱登录</h2>
+                <div class="flex gap-2">
+                    <button id="switchToDbxyx" class="btn-primary">
+                        <i class="fa fa-user-circle"></i>
+                        dbxyx.com
+                    </button>
+                    <button id="switchToDbxop" class="btn-secondary">
+                        <i class="fa fa-lock"></i>
+                        dbxop.com
+                    </button>
+                </div>
+            </div>
+            
+            <!-- dbxyx.com 登录表单 -->
+            <div id="dbxyxLoginForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">选择用户</label>
+                    <select id="dbxyxUser" class="input-field">
+                        <option value="漫画家1">漫画家1@dbxyx.com</option>
+                        <option value="漫画家2">漫画家2@dbxyx.com</option>
+                        <option value="漫画家3">漫画家3@dbxyx.com</option>
+                        <option value="漫画家4">漫画家4@dbxyx.com</option>
+                        <option value="漫画家5">漫画家5@dbxyx.com</option>
+                    </select>
+                </div>
+                <button id="dbxyxLoginBtn" class="btn-primary w-full">
+                    <i class="fa fa-sign-in"></i>
+                    登录
+                </button>
+            </div>
+            
+            <!-- dbxop.com 登录表单 -->
+            <div id="dbxopLoginForm" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">邮箱地址</label>
+                    <input type="email" value="user@dbxop.com" disabled class="input-field bg-gray-100" placeholder="user@dbxop.com">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">密码</label>
+                    <input type="password" id="dbxopPassword" class="input-field" placeholder="请输入密码">
+                </div>
+                <button id="dbxopLoginBtn" class="btn-primary w-full">
+                    <i class="fa fa-sign-in"></i>
+                    登录
+                </button>
+            </div>
+            
+            <div id="loginError" class="mt-4 p-3 bg-red-100 text-red-700 rounded-md hidden">
+                <i class="fa fa-exclamation-circle"></i>
+                <span>密码错误，请重试</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用界面 -->
+    <div id="app" class="hidden min-h-screen flex flex-col">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa fa-envelope text-primary text-2xl"></i>
+                        <h1 class="text-xl font-bold text-neutral-dark" id="currentDomain">www.dbxyx.com</h1>
+                    </div>
+                    <div class="text-sm text-gray-500" id="currentUser">漫画家1@dbxyx.com</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="composeBtn" class="btn-primary">
+                        <i class="fa fa-plus"></i>
+                        写邮件
+                    </button>
+                    <button id="switchDomainBtn" class="btn-secondary">
+                        <i class="fa fa-exchange"></i>
+                        切换域名
+                    </button>
+                    <button id="logoutBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fa fa-sign-out text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 主内容区 -->
+        <main class="flex-1 flex">
+            <!-- 左侧邮件列表 -->
+            <div class="w-1/4 bg-white border-r border-gray-200 flex flex-col">
+                <div class="p-4 border-b border-gray-200">
+                    <div class="relative">
+                        <input type="text" id="searchInput" class="input-field pl-10" placeholder="搜索邮件...">
+                        <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto" id="mailList">
+                    <!-- 邮件列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
+            
+            <!-- 右侧邮件内容 -->
+            <div class="w-3/4 flex flex-col">
+                <div id="noMailSelected" class="flex-1 flex items-center justify-center flex-col gap-4 text-gray-500">
+                    <i class="fa fa-envelope-o text-6xl"></i>
+                    <p class="text-xl">选择一封邮件查看内容</p>
+                </div>
+                <div id="mailContent" class="flex-1 flex flex-col hidden">
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex justify-between items-start mb-2">
+                            <h2 class="text-xl font-bold" id="mailSubject">邮件主题</h2>
+                            <div class="flex gap-2">
+                                <button class="text-gray-500 hover:text-primary" id="replyBtn">
+                                    <i class="fa fa-reply"></i>
+                                </button>
+                                <button class="text-gray-500 hover:text-primary" id="forwardBtn">
+                                    <i class="fa fa-forward"></i>
+                                </button>
+                                <button class="text-gray-500 hover:text-danger" id="deleteBtn">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600">
+                            <div>
+                                <span class="font-medium">发件人:</span>
+                                <span id="mailFrom">发件人邮箱</span>
+                            </div>
+                            <div>
+                                <span class="font-medium">收件人:</span>
+                                <span id="mailTo">收件人邮箱</span>
+                            </div>
+                            <div>
+                                <span class="font-medium">时间:</span>
+                                <span id="mailTime">发送时间</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-4 overflow-y-auto" id="mailBody">
+                        <!-- 邮件内容将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 写邮件模态框 -->
+    <div id="composeModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 hidden">
+        <div class="bg-white rounded-xl p-6 w-full max-w-4xl h-[80vh] flex flex-col animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-neutral-dark">写邮件</h2>
+                <button id="closeComposeBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex-1 flex flex-col">
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">收件人</label>
+                    <input type="email" id="composeTo" class="input-field" placeholder="请输入收件人邮箱地址">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">主题</label>
+                    <input type="text" id="composeSubject" class="input-field" placeholder="请输入邮件主题">
+                </div>
+                <div class="flex-1 mb-3">
+                    <label class="block text-sm font-medium text-neutral-dark mb-1">内容</label>
+                    <textarea id="composeBody" class="input-field h-full resize-none" placeholder="请输入邮件内容"></textarea>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button id="cancelComposeBtn" class="btn-secondary">
+                        <i class="fa fa-times"></i>
+                        取消
+                    </button>
+                    <button id="sendBtn" class="btn-primary">
+                        <i class="fa fa-paper-plane"></i>
+                        发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发送成功提示 -->
+    <div id="sendSuccessToast" class="fixed bottom-4 right-4 bg-success text-white px-4 py-3 rounded-md shadow-lg hidden animate-slide-in">
+        <div class="flex items-center gap-2">
+            <i class="fa fa-check-circle"></i>
+            <span>邮件发送成功！</span>
+        </div>
+    </div>
+
+    <!-- 切换域名模态框 -->
+    <div id="switchDomainModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 hidden">
+        <div class="glass-effect rounded-xl p-6 w-full max-w-md animate-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-neutral-dark">切换域名</h2>
+                <button id="closeSwitchDomainBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <button id="switchToDbxyxFromApp" class="btn-primary">
+                    <i class="fa fa-user-circle"></i>
+                    切换到 dbxyx.com
+                </button>
+                <button id="switchToDbxopFromApp" class="btn-secondary">
+                    <i class="fa fa-lock"></i>
+                    切换到 dbxop.com
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 模拟邮件数据
+        const mockMails = {
+            'dbxyx.com': {
+                '漫画家1': [
+                    {
+                        id: '1',
+                        from: '漫画家2@dbxyx.com',
+                        to: '漫画家1@dbxyx.com',
+                        subject: '关于新作品的讨论',
+                        body: '你好，我看了你最新发布的漫画作品，非常喜欢！特别是那个关于未来世界的设定，很有创意。我们可以找个时间详细讨论一下吗？',
+                        time: '2025-07-20 14:30',
+                        read: true
+                    },
+                    {
+                        id: '2',
+                        from: '漫画家3@dbxyx.com',
+                        to: '漫画家1@dbxyx.com',
+                        subject: '合作邀请',
+                        body: '你好，我正在策划一个联合创作项目，想邀请你加入。这是一个关于异世界冒险的故事，我觉得你的画风非常适合这个题材。如果有兴趣的话，我们可以详谈。',
+                        time: '2025-07-19 10:15',
+                        read: false
+                    }
+                ],
+                '漫画家2': [
+                    {
+                        id: '3',
+                        from: '漫画家1@dbxyx.com',
+                        to: '漫画家2@dbxyx.com',
+                        subject: '回复：关于新作品的讨论',
+                        body: '谢谢你的喜欢！我也很欣赏你的作品。我们可以约个时间见面讨论，我这周末有空，你呢？',
+                        time: '2025-07-20 15:45',
+                        read: true
+                    }
+                ],
+                '漫画家3': [
+                    {
+                        id: '4',
+                        from: '漫画家1@dbxyx.com',
+                        to: '漫画家3@dbxyx.com',
+                        subject: '回复：合作邀请',
+                        body: '你好！感谢你的邀请，我对这个项目很感兴趣。能否先发一些你的构思给我看看？我们可以线上先讨论一下基本框架。',
+                        time: '2025-07-19 16:20',
+                        read: true
+                    }
+                ],
+                '漫画家4': [],
+                '漫画家5': []
+            },
+            'dbxop.com': {
+                'user': [
+                    {
+                        id: '5',
+                        from: '漫画家1@dbxyx.com',
+                        to: 'user@dbxop.com',
+                        subject: '投稿咨询',
+                        body: '你好，我是一名漫画家，想咨询一下贵平台的投稿流程和要求。我有几个系列作品想发表，希望能了解更多信息。',
+                        time: '2025-07-20 09:10',
+                        read: false
+                    },
+                    {
+                        id: '6',
+                        from: '漫画家2@dbxyx.com',
+                        to: 'user@dbxop.com',
+                        subject: '版权合作',
+                        body: '您好，我想了解一下在贵平台发表作品的版权条款。我希望能够保留部分权利，同时也愿意与平台进行合理的收益分成。',
+                        time: '2025-07-18 13:25',
+                        read: true
+                    }
+                ]
+            }
+        };
+
+        // 当前状态
+        let currentState = {
+            domain: 'dbxyx.com',
+            user: '漫画家1',
+            selectedMailId: null
+        };
+
+        // DOM 元素
+        const elements = {
+            loginModal: document.getElementById('loginModal'),
+            dbxyxLoginForm: document.getElementById('dbxyxLoginForm'),
+            dbxopLoginForm: document.getElementById('dbxopLoginForm'),
+            dbxyxUser: document.getElementById('dbxyxUser'),
+            dbxopPassword: document.getElementById('dbxopPassword'),
+            dbxyxLoginBtn: document.getElementById('dbxyxLoginBtn'),
+            dbxopLoginBtn: document.getElementById('dbxopLoginBtn'),
+            switchToDbxyx: document.getElementById('switchToDbxyx'),
+            switchToDbxop: document.getElementById('switchToDbxop'),
+            loginError: document.getElementById('loginError'),
+            app: document.getElementById('app'),
+            currentDomain: document.getElementById('currentDomain'),
+            currentUser: document.getElementById('currentUser'),
+            composeBtn: document.getElementById('composeBtn'),
+            switchDomainBtn: document.getElementById('switchDomainBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            mailList: document.getElementById('mailList'),
+            noMailSelected: document.getElementById('noMailSelected'),
+            mailContent: document.getElementById('mailContent'),
+            mailSubject: document.getElementById('mailSubject'),
+            mailFrom: document.getElementById('mailFrom'),
+            mailTo: document.getElementById('mailTo'),
+            mailTime: document.getElementById('mailTime'),
+            mailBody: document.getElementById('mailBody'),
+            replyBtn: document.getElementById('replyBtn'),
+            forwardBtn: document.getElementById('forwardBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            composeModal: document.getElementById('composeModal'),
+            closeComposeBtn: document.getElementById('closeComposeBtn'),
+            cancelComposeBtn: document.getElementById('cancelComposeBtn'),
+            composeTo: document.getElementById('composeTo'),
+            composeSubject: document.getElementById('composeSubject'),
+            composeBody: document.getElementById('composeBody'),
+            sendBtn: document.getElementById('sendBtn'),
+            sendSuccessToast: document.getElementById('sendSuccessToast'),
+            switchDomainModal: document.getElementById('switchDomainModal'),
+            closeSwitchDomainBtn: document.getElementById('closeSwitchDomainBtn'),
+            switchToDbxyxFromApp: document.getElementById('switchToDbxyxFromApp'),
+            switchToDbxopFromApp: document.getElementById('switchToDbxopFromApp'),
+            searchInput: document.getElementById('searchInput')
+        };
+
+        // 初始化应用
+        function initApp() {
+            // 绑定事件监听器
+            bindEventListeners();
+            
+            // 初始化显示
+            renderMailList();
+        }
+
+        // 绑定事件监听器
+        function bindEventListeners() {
+            // 登录相关
+            elements.dbxyxLoginBtn.addEventListener('click', handleDbxyxLogin);
+            elements.dbxopLoginBtn.addEventListener('click', handleDbxopLogin);
+            elements.switchToDbxyx.addEventListener('click', () => switchLoginForm('dbxyx'));
+            elements.switchToDbxop.addEventListener('click', () => switchLoginForm('dbxop'));
+            
+            // 应用内操作
+            elements.composeBtn.addEventListener('click', openComposeModal);
+            elements.switchDomainBtn.addEventListener('click', openSwitchDomainModal);
+            elements.logoutBtn.addEventListener('click', handleLogout);
+            elements.replyBtn.addEventListener('click', handleReply);
+            elements.forwardBtn.addEventListener('click', handleForward);
+            elements.deleteBtn.addEventListener('click', handleDelete);
+            
+            // 写邮件模态框
+            elements.closeComposeBtn.addEventListener('click', closeComposeModal);
+            elements.cancelComposeBtn.addEventListener('click', closeComposeModal);
+            elements.sendBtn.addEventListener('click', handleSend);
+            
+            // 切换域名模态框
+            elements.closeSwitchDomainBtn.addEventListener('click', closeSwitchDomainModal);
+            elements.switchToDbxyxFromApp.addEventListener('click', () => switchDomain('dbxyx.com'));
+            elements.switchToDbxopFromApp.addEventListener('click', () => switchDomain('dbxop.com'));
+            
+            // 搜索功能
+            elements.searchInput.addEventListener('input', handleSearch);
+        }
+
+        // 处理 dbxyx.com 登录
+        function handleDbxyxLogin() {
+            const selectedUser = elements.dbxyxUser.value;
+            currentState.user = selectedUser;
+            currentState.domain = 'dbxyx.com';
+            currentState.selectedMailId = null;
+            
+            elements.loginModal.classList.add('hidden');
+            elements.app.classList.remove('hidden');
+            updateUI();
+        }
+
+        // 处理 dbxop.com 登录
+        function handleDbxopLogin() {
+            const password = elements.dbxopPassword.value;
+            
+            if (password === '2015') {
+                elements.loginError.classList.add('hidden');
+                currentState.user = 'user';
+                currentState.domain = 'dbxop.com';
+                currentState.selectedMailId = null;
+                
+                elements.loginModal.classList.add('hidden');
+                elements.app.classList.remove('hidden');
+                updateUI();
+            } else {
+                elements.loginError.classList.remove('hidden');
+                // 添加震动动画
+                gsap.to(elements.dbxopPassword, {
+                    x: 10,
+                    duration: 0.1,
+                    repeat: 3,
+                    yoyo: true,
+                    onComplete: () => {
+                        gsap.set(elements.dbxopPassword, { x: 0 });
+                    }
+                });
+            }
+        }
+
+        // 切换登录表单
+        function switchLoginForm(formType) {
+            if (formType === 'dbxyx') {
+                elements.dbxyxLoginForm.classList.remove('hidden');
+                elements.dbxopLoginForm.classList.add('hidden');
+                elements.switchToDbxyx.classList.remove('btn-secondary');
+                elements.switchToDbxyx.classList.add('btn-primary');
+                elements.switchToDbxop.classList.remove('btn-primary');
+                elements.switchToDbxop.classList.add('btn-secondary');
+            } else {
+                elements.dbxyxLoginForm.classList.add('hidden');
+                elements.dbxopLoginForm.classList.remove('hidden');
+                elements.switchToDbxyx.classList.remove('btn-primary');
+                elements.switchToDbxyx.classList.add('btn-secondary');
+                elements.switchToDbxop.classList.remove('btn-secondary');
+                elements.switchToDbxop.classList.add('btn-primary');
+            }
+            elements.loginError.classList.add('hidden');
+        }
+
+        // 更新 UI
+        function updateUI() {
+            elements.currentDomain.textContent = `www.${currentState.domain}`;
+            elements.currentUser.textContent = `${currentState.user}@${currentState.domain}`;
+            renderMailList();
+            clearMailContent();
+        }
+
+        // 渲染邮件列表
+        function renderMailList() {
+            const mails = mockMails[currentState.domain][currentState.user] || [];
+            elements.mailList.innerHTML = '';
+            
+            if (mails.length === 0) {
+                elements.mailList.innerHTML = `
+                    <div class="p-6 text-center text-gray-500">
+                        <i class="fa fa-inbox text-4xl mb-2"></i>
+                        <p>暂无邮件</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            mails.forEach(mail => {
+                const mailItem = document.createElement('div');
+                mailItem.className = `mail-item ${mail.id === currentState.selectedMailId ? 'active' : ''}`;
+                mailItem.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <div class="font-medium ${!mail.read ? 'text-primary' : ''}">${mail.from}</div>
+                        <div class="text-xs text-gray-500">${mail.time}</div>
+                    </div>
+                    <div class="font-medium mb-1 truncate">${mail.subject}</div>
+                    <div class="text-sm text-gray-600 line-clamp-1">${mail.body}</div>
+                `;
+                
+                mailItem.addEventListener('click', () => selectMail(mail.id));
+                elements.mailList.appendChild(mailItem);
+            });
+        }
+
+        // 选择邮件
+        function selectMail(mailId) {
+            currentState.selectedMailId = mailId;
+            renderMailList();
+            renderMailContent();
+        }
+
+        // 渲染邮件内容
+        function renderMailContent() {
+            const mails = mockMails[currentState.domain][currentState.user] || [];
+            const selectedMail = mails.find(mail => mail.id === currentState.selectedMailId);
+            
+            if (!selectedMail) {
+                clearMailContent();
+                return;
+            }
+            
+            // 标记为已读
+            selectedMail.read = true;
+            
+            elements.noMailSelected.classList.add('hidden');
+            elements.mailContent.classList.remove('hidden');
+            
+            elements.mailSubject.textContent = selectedMail.subject;
+            elements.mailFrom.textContent = selectedMail.from;
+            elements.mailTo.textContent = selectedMail.to;
+            elements.mailTime.textContent = selectedMail.time;
+            elements.mailBody.innerHTML = `<p>${selectedMail.body.replace(/\n/g, '<br>')}</p>`;
+        }
+
+        // 清除邮件内容
+        function clearMailContent() {
+            elements.noMailSelected.classList.remove('hidden');
+            elements.mailContent.classList.add('hidden');
+            currentState.selectedMailId = null;
+        }
+
+        // 打开写邮件模态框
+        function openComposeModal() {
+            elements.composeTo.value = '';
+            elements.composeSubject.value = '';
+            elements.composeBody.value = '';
+            elements.composeModal.classList.remove('hidden');
+            elements.composeTo.focus();
+        }
+
+        // 关闭写邮件模态框
+        function closeComposeModal() {
+            elements.composeModal.classList.add('hidden');
+        }
+
+        // 处理发送邮件
+        function handleSend() {
+            const to = elements.composeTo.value.trim();
+            const subject = elements.composeSubject.value.trim();
+            const body = elements.composeBody.value.trim();
+            
+            if (!to || !subject || !body) {
+                alert('请填写完整的邮件信息');
+                return;
+            }
+            
+            // 验证收件人邮箱格式
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(to)) {
+                alert('请输入有效的邮箱地址');
+                return;
+            }
+            
+            // 提取收件人域名
+            const recipientDomain = to.split('@')[1];
+            
+            // 检查是否是允许的域名
+            if (!['dbxyx.com', 'dbxop.com'].includes(recipientDomain)) {
+                alert('只能发送邮件到 dbxyx.com 或 dbxop.com 域名');
+                return;
+            }
+            
+            // 提取收件人用户名
+            const recipientUser = to.split('@')[0];
+            
+            // 生成新邮件
+            const newMail = {
+                id: Date.now().toString(),
+                from: `${currentState.user}@${currentState.domain}`,
+                to: to,
+                subject: subject,
+                body: body,
+                time: new Date().toLocaleString('zh-CN', { 
+                    year: 'numeric', 
+                    month: '2-digit', 
+                    day: '2-digit',
+                    hour: '2-digit', 
+                    minute: '2-digit'
+                }).replace(/\//g, '-'),
+                read: false
+            };
+            
+            // 添加到收件人邮箱
+            if (!mockMails[recipientDomain]) {
+                mockMails[recipientDomain] = {};
+            }
+            
+            if (!mockMails[recipientDomain][recipientUser]) {
+                mockMails[recipientDomain][recipientUser] = [];
+            }
+            
+            mockMails[recipientDomain][recipientUser].unshift(newMail);
+            
+            // 如果是发送给自己，也添加到发件人邮箱
+            if (to === `${currentState.user}@${currentState.domain}`) {
+                mockMails[currentState.domain][currentState.user].unshift(newMail);
+            }
+            
+            // 关闭模态框
+            closeComposeModal();
+            
+            // 显示发送成功提示
+            elements.sendSuccessToast.classList.remove('hidden');
+            setTimeout(() => {
+                elements.sendSuccessToast.classList.add('hidden');
+            }, 3000);
+            
+            // 更新邮件列表
+            renderMailList();
+        }
+
+        // 处理回复邮件
+        function handleReply() {
+            const mails = mockMails[currentState.domain][currentState.user] || [];
+            const selectedMail = mails.find(mail => mail.id === currentState.selectedMailId);
+            
+            if (!selectedMail) return;
+            
+            elements.composeTo.value = selectedMail.from;
+            elements.composeSubject.value = selectedMail.subject.startsWith('Re:') ? selectedMail.subject : `Re: ${selectedMail.subject}`;
+            elements.composeBody.value = `\n\n--- 原始邮件 ---\n发件人: ${selectedMail.from}\n收件人: ${selectedMail.to}\n时间: ${selectedMail.time}\n主题: ${selectedMail.subject}\n\n${selectedMail.body}`;
+            
+            elements.composeModal.classList.remove('hidden');
+            elements.composeBody.focus();
+        }
+
+        // 处理转发邮件
+        function handleForward() {
+            const mails = mockMails[currentState.domain][currentState.user] || [];
+            const selectedMail = mails.find(mail => mail.id === currentState.selectedMailId);
+            
+            if (!selectedMail) return;
+            
+            elements.composeTo.value = '';
+            elements.composeSubject.value = selectedMail.subject.startsWith('Fw:') ? selectedMail.subject : `Fw: ${selectedMail.subject}`;
+            elements.composeBody.value = `\n\n--- 转发邮件 ---\n发件人: ${selectedMail.from}\n收件人: ${selectedMail.to}\n时间: ${selectedMail.time}\n主题: ${selectedMail.subject}\n\n${selectedMail.body}`;
+            
+            elements.composeModal.classList.remove('hidden');
+            elements.composeTo.focus();
+        }
+
+        // 处理删除邮件
+        function handleDelete() {
+            const mails = mockMails[currentState.domain][currentState.user] || [];
+            const mailIndex = mails.findIndex(mail => mail.id === currentState.selectedMailId);
+            
+            if (mailIndex === -1) return;
+            
+            // 显示确认对话框
+            if (confirm('确定要删除这封邮件吗？')) {
+                // 从数组中删除邮件
+                mails.splice(mailIndex, 1);
+                
+                // 更新邮件列表
+                currentState.selectedMailId = null;
+                renderMailList();
+                clearMailContent();
+            }
+        }
+
+        // 打开切换域名模态框
+        function openSwitchDomainModal() {
+            elements.switchDomainModal.classList.remove('hidden');
+        }
+
+        // 关闭切换域名模态框
+        function closeSwitchDomainModal() {
+            elements.switchDomainModal.classList.add('hidden');
+        }
+
+        // 切换域名
+        function switchDomain(domain) {
+            // 如果切换到 dbxop.com，需要验证密码
+            if (domain === 'dbxop.com') {
+                elements.switchDomainModal.classList.add('hidden');
+                
+                // 显示登录模态框，切换到 dbxop 登录表单
+                elements.loginModal.classList.remove('hidden');
+                switchLoginForm('dbxop');
+                elements.dbxopPassword.value = '';
+                elements.dbxopPassword.focus();
+            } else {
+                // 切换到 dbxyx.com
+                currentState.domain = 'dbxyx.com';
+                currentState.selectedMailId = null;
+                elements.switchDomainModal.classList.add('hidden');
+                updateUI();
+            }
+        }
+
+        // 处理登出
+        function handleLogout() {
+            elements.app.classList.add('hidden');
+            elements.loginModal.classList.remove('hidden');
+            switchLoginForm('dbxyx');
+            elements.dbxopPassword.value = '';
+            elements.loginError.classList.add('hidden');
+        }
+
+        // 处理搜索
+        function handleSearch() {
+            const searchTerm = elements.searchInput.value.toLowerCase();
+            const mailItems = elements.mailList.querySelectorAll('.mail-item');
+            
+            mailItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
